@@ -1,4 +1,5 @@
-import { XLogo } from "@/components/icons";
+import { XLogo } from "./icons";
+
 
 export function ViewOnX({ url, className = "" }: { url: string; className?: string }) {
   return (

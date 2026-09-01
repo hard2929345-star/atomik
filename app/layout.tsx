@@ -13,6 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // video.twimg.com hotlink-protects MP4s: it returns 403 whenever a Referer is
+  // sent, so the page must not send one or tweet videos will not play.
+  referrer: "no-referrer",
   title: "Home / Atomik",
   description: "Tweets collected in tweet_table_atomik.",
 };

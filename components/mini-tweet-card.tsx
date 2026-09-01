@@ -1,10 +1,25 @@
 import { LikeIcon, ReplyIcon, RetweetIcon, ViewsIcon } from "@/components/icons";
 import { formatCount } from "@/lib/format";
+import { TweetVideo } from "@/components/tweet-video";
 import { ViewOnX } from "@/components/view-on-x";
 import { formatDuration, type NormalizedMedia } from "@/lib/media";
 
 function Thumb({ media }: { media: NormalizedMedia }) {
   const duration = formatDuration(media.durationMillis);
+
+  if (media.videoUrl) {
+    return (
+      <span className="block h-[92px] w-[92px] shrink-0 overflow-hidden rounded-lg">
+        <TweetVideo
+          src={media.videoUrl}
+          poster={media.posterUrl}
+          duration={duration}
+          fill
+          compact
+        />
+      </span>
+    );
+  }
 
   return (
     <span className="relative block shrink-0">
@@ -12,14 +27,9 @@ function Thumb({ media }: { media: NormalizedMedia }) {
       <img
         src={media.posterUrl}
         alt=""
-        className="h-[68px] w-[68px] rounded-lg bg-[#16181c] object-cover"
+        className="h-[92px] w-[92px] rounded-lg bg-[#16181c] object-cover"
         loading="lazy"
       />
-      {duration ? (
-        <span className="absolute bottom-1 left-1 rounded bg-black/75 px-1 text-[11px] text-white">
-          {duration}
-        </span>
-      ) : null}
     </span>
   );
 }

@@ -1,3 +1,4 @@
+import { TweetVideo } from "@/components/tweet-video";
 import { formatDuration, type NormalizedMedia } from "@/lib/media";
 
 function MediaItem({ media, fill }: { media: NormalizedMedia; fill: boolean }) {
@@ -5,24 +6,12 @@ function MediaItem({ media, fill }: { media: NormalizedMedia; fill: boolean }) {
 
   if (media.videoUrl) {
     return (
-      // Video playback-speed browser extensions inject controls next to <video>
-      // before hydration; ignore the resulting attribute mismatch on this node.
-      <div className="relative h-full" suppressHydrationWarning>
-        <video
-          className={`w-full bg-black object-cover ${fill ? "h-full" : "max-h-[510px]"}`}
-          poster={media.posterUrl}
-          controls
-          preload="none"
-          playsInline
-        >
-          <source src={media.videoUrl} type="video/mp4" />
-        </video>
-        {duration ? (
-          <span className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/70 px-1 py-0.5 text-[13px] font-medium text-white">
-            {duration}
-          </span>
-        ) : null}
-      </div>
+      <TweetVideo
+        src={media.videoUrl}
+        poster={media.posterUrl}
+        duration={duration}
+        fill={fill}
+      />
     );
   }
 
