@@ -54,8 +54,9 @@ function optionalText(value) {
 
 function toRow(tweet) {
   const author = tweet.author ?? {};
-  const sourceTweetId = tweet.sourceTweetId ?? tweet.sourceTarget;
   const quotedTweetId = tweet.quotedTweetId ?? tweet.quotedTweet?.id;
+  // Search-based scrapes carry no source marker; the quoted post is the source.
+  const sourceTweetId = tweet.sourceTweetId ?? tweet.sourceTarget ?? quotedTweetId;
 
   if (!tweet.id || !tweet.text || !tweet.url || !sourceTweetId || !quotedTweetId) {
     throw new Error(`Tweet ${tweet.id ?? "<unknown>"} is missing a required field`);

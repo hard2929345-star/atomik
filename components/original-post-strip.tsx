@@ -1,4 +1,6 @@
 import { VerifiedBadge } from "@/components/icons";
+import { ProfileHoverCard } from "@/components/profile-hover-card";
+import { tweetProfile } from "@/lib/profile";
 import { formatIstDateTime } from "@/lib/format";
 import { ViewOnX } from "@/components/view-on-x";
 import type { Tweet } from "@/lib/tweets";
@@ -13,7 +15,7 @@ export function OriginalPostStrip({ tweet }: { tweet: Tweet }) {
         <ViewOnX url={tweet.url} />
       </div>
 
-      <div className="mt-1 flex items-center gap-2">
+      <ProfileHoverCard profile={tweetProfile(tweet)} className="mt-1 items-center gap-2">
         {tweet.author_profile_picture ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -26,13 +28,15 @@ export function OriginalPostStrip({ tweet }: { tweet: Tweet }) {
         )}
 
         <span className="flex min-w-0 items-center gap-1 text-[15px]">
-          <span className="truncate font-bold text-[#e7e9ea]">{tweet.author_name}</span>
+          <span className="truncate font-bold text-[#e7e9ea] hover:underline">
+            {tweet.author_name}
+          </span>
           {verified ? (
             <VerifiedBadge className="h-[16px] w-[16px] shrink-0 text-[#1d9bf0]" />
           ) : null}
           <span className="truncate text-[#71767b]">@{tweet.author_username}</span>
         </span>
-      </div>
+      </ProfileHoverCard>
 
       <p className="mt-1 text-[15px] text-[#e7e9ea]">
         Posted{" "}

@@ -73,13 +73,30 @@ export function dateRangeFilter(column: string, range: DateRange): string {
   return clauses.join("");
 }
 
-export function parsePaidOnly(value: Param): boolean {
-  return first(value) === "1";
+export type Disclosure = "paid" | "unpaid";
+
+/** `paid=1` keeps paid partnerships, `paid=0` keeps everything else. */
+export function parseDisclosure(value: Param): Disclosure | undefined {
+  const found = first(value);
+  if (found === "1") return "paid";
+  if (found === "0") return "unpaid";
+  return undefined;
+}
+
+export function disclosureParam(disclosure: Disclosure | undefined): string | undefined {
+  if (disclosure === "paid") return "1";
+  if (disclosure === "unpaid") return "0";
+  return undefined;
 }
 
 /** PostgREST filter for X's paid-partnership disclosure. */
-export function paidPromotionFilter(paidOnly: boolean): string {
-  return paidOnly ? "&content_disclosure->advertising->>isPaidPromotion=eq.true" : "";
+export function disclosureFilter(disclosure: Disclosure | undefined): string {
+  const flag = "content_disclosure->advertising->>isPaidPromotion";
+
+  if (disclosure === "paid") return `&${flag}=eq.true`;
+  // Most quotes carry no disclosure at all, so a missing flag counts as non-paid.
+  if (disclosure === "unpaid") return `&or=(${flag}.is.null,${flag}.neq.true)`;
+  return "";
 }
 
 export function buildQueryString(values: Record<string, string | undefined>): string {
@@ -91,4 +108,34 @@ export function buildQueryString(values: Record<string, string | undefined>): st
 
   const query = params.toString();
   return query ? `?${query}` : "";
+}
+
+export const WINDOW_PRESETS = [30, 60, 90, 120] as const;
+
+/** Minutes since the original post, used for the "first N minutes" filter. */
+export function parseWindowMinutes(value: Param): number | undefined {
+  const found = first(value);
+  if (!found) return undefined;
+
+  const minutes = Number(found);
+  return Number.isInteger(minutes) && minutes > 0 && minutes <= 100000 ? minutes : undefined;
+}
+
+/**
+ * PostgREST filter for rows inside the first `minutes` after `startIso`.
+ * The window is inclusive of the post instant and of its closing edge.
+ */
+export function windowFilter(
+  column: string,
+  startIso: string | undefined,
+  minutes: number | undefined,
+): string {
+  if (!startIso || !minutes) return "";
+
+  const start = new Date(startIso);
+  if (Number.isNaN(start.getTime())) return "";
+
+  const end = new Date(start.getTime() + minutes * 60_000);
+
+  return `&${column}=gte.${start.toISOString()}&${column}=lte.${end.toISOString()}`;
 }

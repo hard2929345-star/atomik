@@ -52,8 +52,40 @@ function optionalText(value) {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-function toRow(user) {
-  const sourceTweetId = user.sourceTweetId ?? user.sourceTarget;
+// Datasets that carry no source marker (e.g. scrape.badger "Get Retweeters")
+// need the post passed in: --source=<tweet id>.
+const sourceOverride = process.argv
+  .slice(2)
+  .find((argument) => argument.startsWith("--source="))
+  ?.slice("--source=".length)
+  .trim();
+
+// Only add retweeters that are not stored yet, leaving existing rows untouched.
+const newOnly = process.argv.includes("--new-only");
+
+function toRow(raw) {
+  // Normalise the snake_case shape, where `following` is a viewer flag rather than a count.
+  const user =
+    "followers_count" in raw
+      ? {
+          ...raw,
+          followers: raw.followers_count,
+          following: raw.following_count,
+          statusesCount: raw.tweet_count,
+          favouritesCount: raw.favourites_count,
+          mediaCount: raw.media_count,
+          isBlueVerified: raw.is_blue_verified,
+          profilePicture: raw.profile_image_url,
+          profileBannerUrl: raw.profile_banner_url,
+          createdAt: raw.created_at,
+          possiblySensitive: raw.possibly_sensitive,
+          profileImageShape: raw.profile_image_shape,
+          profileInterstitialType: raw.profile_interstitial_type,
+          superFollowEligible: raw.super_follow_eligible,
+          pinnedTweetIds: raw.pinned_tweet_ids,
+        }
+      : raw;
+  const sourceTweetId = user.sourceTweetId ?? user.sourceTarget ?? sourceOverride;
 
   if (!user.id || !user.username || !user.name || !sourceTweetId) {
     throw new Error(`Retweeter ${user.id ?? "<unknown>"} is missing a required field`);
@@ -108,7 +140,7 @@ function toRow(user) {
     affiliates_highlighted_label: user.affiliatesHighlightedLabel ?? null,
     professional: user.professional ?? null,
     pinned_tweet_ids: user.pinnedTweetIds ?? [],
-    raw_data: user,
+    raw_data: raw,
     updated_at: new Date().toISOString(),
   };
 }
@@ -122,7 +154,7 @@ async function upsertBatch(url, serviceRoleKey, rows) {
         apikey: serviceRoleKey,
         Authorization: `Bearer ${serviceRoleKey}`,
         "Content-Type": "application/json",
-        Prefer: "resolution=merge-duplicates,return=minimal",
+        Prefer: `resolution=${newOnly ? "ignore" : "merge"}-duplicates,return=minimal`,
       },
       body: JSON.stringify(rows),
     },
@@ -142,7 +174,11 @@ if (!Array.isArray(users)) {
   throw new Error("Retweeter dataset must be a JSON array");
 }
 
-const rows = users.map(toRow);
+// Unavailable accounts come back as fully blank placeholders with nothing to store.
+const blank = users.filter((user) => !user.id && !user.username && !user.name);
+if (blank.length > 0) console.log(`Skipping ${blank.length} blank placeholder record(s).`);
+
+const rows = users.filter((user) => !blank.includes(user)).map(toRow);
 const keys = new Set(rows.map((row) => `${row.source_tweet_id}:${row.user_id}`));
 
 if (keys.size !== rows.length) {

@@ -1,4 +1,5 @@
 import { GrokIcon, MoreIcon, VerifiedBadge } from "@/components/icons";
+import { ProfileHoverCard } from "@/components/profile-hover-card";
 import { QuotedTweetCard } from "@/components/quoted-tweet";
 import { TweetActions } from "@/components/tweet-actions";
 import { TweetMediaGrid } from "@/components/tweet-media";
@@ -10,6 +11,15 @@ import type { QuoteTweet } from "@/lib/tweets";
 
 export function QuoteCard({ quote }: { quote: QuoteTweet }) {
   const verified = quote.author_verified || quote.author_is_blue_verified;
+  const profile = {
+    name: quote.author_name,
+    username: quote.author_username,
+    profilePicture: quote.author_profile_picture,
+    description: quote.author_description,
+    followers: quote.author_followers,
+    following: quote.author_following,
+    verified,
+  };
   const paidPromotion = quote.content_disclosure?.advertising?.isPaidPromotion === true;
   const aiGenerated = quote.content_disclosure?.aiGenerated?.hasAiGeneratedMedia === true;
   const media = normalizeMedia(quote.media as RawMedia[] | undefined);
@@ -17,29 +27,33 @@ export function QuoteCard({ quote }: { quote: QuoteTweet }) {
   return (
     <article className="flex gap-3 border-b border-[#2f3336] px-4 py-3 transition-colors hover:bg-[#080808]">
       <div className="shrink-0">
-        {quote.author_profile_picture ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={quote.author_profile_picture.replace("_normal", "_x96")}
-            alt={quote.author_name}
-            className="h-10 w-10 rounded-full bg-[#16181c] object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="h-10 w-10 rounded-full bg-[#16181c]" />
-        )}
+        <ProfileHoverCard profile={profile}>
+          {quote.author_profile_picture ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={quote.author_profile_picture.replace("_normal", "_x96")}
+              alt={quote.author_name}
+              className="h-10 w-10 rounded-full bg-[#16181c] object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <div className="h-10 w-10 rounded-full bg-[#16181c]" />
+          )}
+        </ProfileHoverCard>
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-1 text-[15px]">
-            <span className="truncate font-bold text-[#e7e9ea] hover:underline">
-              {quote.author_name}
-            </span>
-            {verified ? (
-              <VerifiedBadge className="h-[18px] w-[18px] shrink-0 text-[#1d9bf0]" />
-            ) : null}
-            <span className="truncate text-[#71767b]">@{quote.author_username}</span>
+            <ProfileHoverCard profile={profile} className="items-center gap-x-1">
+              <span className="truncate font-bold text-[#e7e9ea] hover:underline">
+                {quote.author_name}
+              </span>
+              {verified ? (
+                <VerifiedBadge className="h-[18px] w-[18px] shrink-0 text-[#1d9bf0]" />
+              ) : null}
+              <span className="truncate text-[#71767b]">@{quote.author_username}</span>
+            </ProfileHoverCard>
             <span className="text-[#71767b]">·</span>
             <time
               dateTime={quote.tweet_created_at}

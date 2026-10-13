@@ -10,7 +10,8 @@
     "import:quote-tweets": "node scripts/import-quote-tweets.mjs",
     "import:retweeters": "node scripts/import-retweeters.mjs",
     "import:tweets": "node scripts/import-tweets.mjs",
-    "import:replies": "node scripts/import-replies.mjs"
+    "import:replies": "node scripts/import-replies.mjs",
+    "fetch:quote-tweets": "node scripts/fetch-quote-tweets.mjs"
   },
   "dependencies": {
     "next": "16.3.4",

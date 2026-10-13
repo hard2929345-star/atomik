@@ -132,8 +132,11 @@ async function loadAuthorIndex(): Promise<AuthorIndexEntry[]> {
   const rows: IndexRow[] = [];
 
   for (let offset = 0; ; offset += pageSize) {
+    // The empty inner embed keeps only quotes whose source post is an Atomik
+    // post, without returning any of that post's columns.
     const page = await queryTable<IndexRow[]>(
-      `quote_tweet_table_atomik?select=${INDEX_COLUMNS}&order=tweet_created_at.desc` +
+      `quote_tweet_table_atomik?select=${INDEX_COLUMNS},tweet_table_atomik!inner()` +
+        `&tweet_table_atomik.source_type=eq.atomik&order=tweet_created_at.desc` +
         `&limit=${pageSize}&offset=${offset}`,
     );
 
@@ -170,7 +173,9 @@ async function loadAuthorIndex(): Promise<AuthorIndexEntry[]> {
 }
 
 async function loadSourcePosts(): Promise<Record<string, SourcePost>> {
-  const rows = await queryTable<SourceRow[]>(`tweet_table_atomik?select=${SOURCE_COLUMNS}`);
+  const rows = await queryTable<SourceRow[]>(
+    `tweet_table_atomik?select=${SOURCE_COLUMNS}&source_type=eq.atomik`,
+  );
   const sources: Record<string, SourcePost> = {};
 
   for (const row of rows) {
@@ -195,12 +200,12 @@ async function loadSourcePosts(): Promise<Record<string, SourcePost>> {
  * is far past Next's 2MB cache-entry ceiling, so card details are fetched per
  * page instead.
  */
-const getCachedAuthorIndex = unstable_cache(loadAuthorIndex, ["quote-author-index"], {
+const getCachedAuthorIndex = unstable_cache(loadAuthorIndex, ["quote-author-index-atomik"], {
   tags: ["quote-analytics"],
   revalidate: 3600,
 });
 
-const getCachedSourcePosts = unstable_cache(loadSourcePosts, ["quote-source-posts"], {
+const getCachedSourcePosts = unstable_cache(loadSourcePosts, ["quote-source-posts-atomik"], {
   tags: ["quote-analytics"],
   revalidate: 3600,
 });

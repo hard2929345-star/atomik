@@ -11,6 +11,8 @@ import {
   ShareIcon,
   VerifiedBadge,
 } from "@/components/icons";
+import { ProfileHoverCard } from "@/components/profile-hover-card";
+import { tweetProfile } from "@/lib/profile";
 import { ReplyCard } from "@/components/reply-card";
 import { LeftSidebar, RightSidebar } from "@/components/sidebar";
 import { TweetMediaGrid } from "@/components/tweet-media";
@@ -27,7 +29,7 @@ import {
   postOrder,
 } from "@/lib/sort";
 import { normalizeMedia, type RawMedia } from "@/lib/media";
-import { getReplies, getTweet } from "@/lib/tweets";
+import { getAtomikReplies, getReplies, getTweet } from "@/lib/tweets";
 
 function DetailAction({
   icon: Icon,
@@ -66,12 +68,19 @@ export default async function PostPage({ params, searchParams }: PageProps<"/sta
   const direction = parseDirection(dir);
   const range = parseDateRange(from, to);
 
-  const [tweet, replies] = await Promise.all([
-    getTweet(id),
-    getReplies(id, postOrder(field, direction), dateRangeFilter(POST_DATE_COLUMN, range)),
-  ]);
+  const tweet = await getTweet(id);
 
   if (!tweet) notFound();
+
+  // Atomik posts read their replies from the Atomik scrape; global posts keep
+  // the original reply table. Both return the same reply shape.
+  const fetchReplies = tweet.source_type === "atomik" ? getAtomikReplies : getReplies;
+
+  const replies = await fetchReplies(
+    id,
+    postOrder(field, direction),
+    dateRangeFilter(POST_DATE_COLUMN, range),
+  );
 
   const verified = tweet.author_is_verified || tweet.author_is_blue_verified;
   const media = normalizeMedia(tweet.extended_entities?.media as RawMedia[] | undefined);
@@ -85,28 +94,35 @@ export default async function PostPage({ params, searchParams }: PageProps<"/sta
 
         <article className="px-4 pt-3">
           <div className="flex items-center gap-3">
-            {tweet.author_profile_picture ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={tweet.author_profile_picture.replace("_normal", "_x96")}
-                alt={tweet.author_name}
-                className="h-10 w-10 rounded-full bg-[#16181c] object-cover"
-              />
-            ) : (
-              <div className="h-10 w-10 rounded-full bg-[#16181c]" />
-            )}
+            <ProfileHoverCard profile={tweetProfile(tweet)}>
+              {tweet.author_profile_picture ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={tweet.author_profile_picture.replace("_normal", "_x96")}
+                  alt={tweet.author_name}
+                  className="h-10 w-10 rounded-full bg-[#16181c] object-cover"
+                />
+              ) : (
+                <div className="h-10 w-10 rounded-full bg-[#16181c]" />
+              )}
+            </ProfileHoverCard>
 
-            <div className="min-w-0 flex-1 leading-tight">
-              <div className="flex items-center gap-1">
+            <ProfileHoverCard
+              profile={tweetProfile(tweet)}
+              className="min-w-0 flex-1 flex-col items-start leading-tight"
+            >
+              <span className="flex items-center gap-1">
                 <span className="truncate text-[15px] font-bold text-[#e7e9ea] hover:underline">
                   {tweet.author_name}
                 </span>
                 {verified ? (
                   <VerifiedBadge className="h-[18px] w-[18px] shrink-0 text-[#1d9bf0]" />
                 ) : null}
-              </div>
-              <p className="truncate text-[15px] text-[#71767b]">@{tweet.author_username}</p>
-            </div>
+              </span>
+              <span className="block truncate text-[15px] text-[#71767b]">
+                @{tweet.author_username}
+              </span>
+            </ProfileHoverCard>
 
             <div className="flex shrink-0 items-center gap-2 text-[#71767b]">
               <GrokIcon className="h-[18.75px] w-[18.75px]" />

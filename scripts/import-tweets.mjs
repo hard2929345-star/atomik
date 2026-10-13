@@ -5,6 +5,7 @@ const DATASET_FILE =
   "dataset_twitter-x-data-tweet-scraper-pay-per-result-cheapest_2026-09-01_16-09-39-758.json";
 const TABLE = "tweet_table_atomik";
 const BATCH_SIZE = 100;
+const SOURCE_TYPES = ["global", "atomik"];
 
 async function loadEnvLocal() {
   const contents = await readFile(resolve(".env.local"), "utf8");
@@ -53,7 +54,7 @@ function optionalText(value) {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-function toRow(tweet) {
+function toRow(tweet, sourceType) {
   const author = tweet.author ?? {};
 
   if (!tweet.id || typeof tweet.text !== "string" || !tweet.url || !author.id) {
@@ -63,6 +64,7 @@ function toRow(tweet) {
   return {
     id: tweet.id,
     type: tweet.type ?? "tweet",
+    source_type: sourceType,
     url: tweet.url,
     twitter_url: optionalText(tweet.twitterUrl),
     text: tweet.text,
@@ -122,6 +124,16 @@ async function upsertBatch(url, serviceRoleKey, rows) {
   }
 }
 
+const sourceTypeArgument = process.argv
+  .slice(2)
+  .find((argument) => argument.startsWith("--source-type="))
+  ?.slice("--source-type=".length);
+const sourceType = sourceTypeArgument ?? "global";
+
+if (!SOURCE_TYPES.includes(sourceType)) {
+  throw new Error(`--source-type must be one of ${SOURCE_TYPES.join(", ")}`);
+}
+
 const datasetArgument = process.argv.slice(2).find((argument) => !argument.startsWith("--"));
 const datasetPath = resolve(datasetArgument ?? DATASET_FILE);
 const tweets = JSON.parse(await readFile(datasetPath, "utf8"));
@@ -130,7 +142,7 @@ if (!Array.isArray(tweets)) {
   throw new Error("Tweet dataset must be a JSON array");
 }
 
-const parsedRows = tweets.map(toRow);
+const parsedRows = tweets.map((tweet) => toRow(tweet, sourceType));
 const byId = new Map();
 
 for (const row of parsedRows) {
@@ -152,6 +164,7 @@ if (process.argv.includes("--dry-run")) {
       {
         valid: true,
         table: TABLE,
+        sourceType,
         records: rows.length,
         duplicatesCollapsed: duplicates,
         authors: [...new Set(rows.map((row) => row.author_username))],
@@ -182,4 +195,4 @@ for (let offset = 0; offset < rows.length; offset += BATCH_SIZE) {
   );
 }
 
-console.log(`Imported ${rows.length} tweets into ${TABLE}.`);
+console.log(`Imported ${rows.length} ${sourceType} tweets into ${TABLE}.`);

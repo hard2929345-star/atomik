@@ -39,7 +39,8 @@ export function SortPanel({
   activeField,
   activeDirection,
   range,
-  paidOnly = false,
+  paid,
+  windowMinutes,
 }: {
   title: string;
   basePath: string;
@@ -47,7 +48,8 @@ export function SortPanel({
   activeField?: string;
   activeDirection: SortDirection;
   range: { from?: string; to?: string };
-  paidOnly?: boolean;
+  paid?: string;
+  windowMinutes?: number;
 }) {
   const link = (overrides: Record<string, string | undefined>) =>
     `${basePath}${buildQueryString({
@@ -55,7 +57,8 @@ export function SortPanel({
       dir: activeDirection,
       from: range.from,
       to: range.to,
-      paid: paidOnly ? "1" : undefined,
+      paid,
+      window: windowMinutes ? String(windowMinutes) : undefined,
       ...overrides,
     })}`;
 

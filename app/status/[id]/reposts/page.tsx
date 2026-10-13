@@ -5,7 +5,7 @@ import { RetweeterRow } from "@/components/retweeter-row";
 import { LeftSidebar, RightSidebar } from "@/components/sidebar";
 import { SortPanel } from "@/components/sort-panel";
 import { parseDirection, repostOrder } from "@/lib/sort";
-import { getRetweeters, getTweet } from "@/lib/tweets";
+import { countRetweeters, getRetweeters, getTweet } from "@/lib/tweets";
 
 export default async function RepostsPage({
   params,
@@ -13,9 +13,10 @@ export default async function RepostsPage({
 }: PageProps<"/status/[id]/reposts">) {
   const [{ id }, { dir }] = await Promise.all([params, searchParams]);
   const direction = parseDirection(dir);
-  const [tweet, retweeters] = await Promise.all([
+  const [tweet, retweeters, repostCount] = await Promise.all([
     getTweet(id),
     getRetweeters(id, repostOrder(direction)),
+    countRetweeters(id),
   ]);
 
   if (!tweet) notFound();
@@ -26,7 +27,19 @@ export default async function RepostsPage({
 
       <main className="w-full max-w-[600px] shrink border-x border-[#2f3336]">
         <div className="sticky top-0 z-10 bg-black/65 backdrop-blur-md">
-          <BackHeader title="Post activity" />
+          <BackHeader
+            title="Post activity"
+            action={
+              <div className="shrink-0 text-right">
+                <p className="text-[17px] font-bold tabular-nums leading-tight text-[#e7e9ea]">
+                  {repostCount.toLocaleString()}
+                </p>
+                <p className="text-[12px] leading-tight text-[#71767b]">
+                  {repostCount === 1 ? "repost" : "reposts"}
+                </p>
+              </div>
+            }
+          />
           <PostActivityTabs tweetId={id} active="reposts" />
         </div>
 

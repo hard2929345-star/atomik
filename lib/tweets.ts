@@ -26,10 +26,19 @@ export type TweetAuthor = {
   profilePicture?: string;
   isVerified?: boolean;
   isBlueVerified?: boolean;
+  description?: string;
+  followers?: number;
+  following?: number;
 };
+
+export type TweetSourceType = "global" | "atomik";
+
+/** The feed only shows the latest Atomik scrape; the older global-directory rows stay in the table. */
+const FEED_SOURCE_TYPE: TweetSourceType = "atomik";
 
 export type Tweet = {
   id: string;
+  source_type: TweetSourceType;
   url: string;
   text: string;
   tweet_created_at: string;
@@ -76,7 +85,10 @@ const COLUMNS = [
   "extended_entities",
 ].join(",");
 
-export type Reply = Tweet & {
+/** `source_type` exists only on tweet_table_atomik, not on the reply/quote tables. */
+const TWEET_COLUMNS = `${COLUMNS},source_type`;
+
+export type Reply = Omit<Tweet, "source_type"> & {
   root_tweet_id: string;
   parent_tweet_id: string;
   media: unknown[];
@@ -100,6 +112,9 @@ export type QuoteTweet = {
   author_profile_picture: string | null;
   author_verified: boolean;
   author_is_blue_verified: boolean;
+  author_description: string | null;
+  author_followers: number;
+  author_following: number;
   media: unknown[];
   content_disclosure: {
     advertising?: { isPaidPromotion?: boolean };
@@ -130,6 +145,7 @@ export type Retweeter = {
   description: string | null;
   profile_picture: string | null;
   followers: number;
+  following: number;
   is_verified: boolean;
   is_blue_verified: boolean;
   account_created_at: string;
@@ -162,7 +178,7 @@ export async function queryTable<T>(path: string): Promise<T> {
 
 export async function getTweet(id: string): Promise<Tweet | null> {
   const rows = await queryTable<Tweet[]>(
-    `tweet_table_atomik?select=${COLUMNS}&id=eq.${encodeURIComponent(id)}&limit=1`,
+    `tweet_table_atomik?select=${TWEET_COLUMNS}&id=eq.${encodeURIComponent(id)}&limit=1`,
   );
   return rows[0] ?? null;
 }
@@ -174,6 +190,22 @@ export async function getReplies(
 ): Promise<Reply[]> {
   return queryTable<Reply[]>(
     `reply_tweet_table_atomik?select=${COLUMNS},root_tweet_id,parent_tweet_id,media` +
+      `&root_tweet_id=eq.${encodeURIComponent(rootTweetId)}${filter}` +
+      `&order=${order}&limit=100`,
+  );
+}
+
+/**
+ * Replies for an Atomik post. Same shape as getReplies, but read from the
+ * Atomik replies scrape rather than the global reply table.
+ */
+export async function getAtomikReplies(
+  rootTweetId: string,
+  order = "view_count.desc",
+  filter = "",
+): Promise<Reply[]> {
+  return queryTable<Reply[]>(
+    `reply_author_table_atomik?select=${COLUMNS},root_tweet_id,parent_tweet_id,media` +
       `&root_tweet_id=eq.${encodeURIComponent(rootTweetId)}${filter}` +
       `&order=${order}&limit=100`,
   );
@@ -202,6 +234,9 @@ export async function getQuoteTweets(
     "author_profile_picture",
     "author_verified",
     "author_is_blue_verified",
+    "author_description",
+    "author_followers",
+    "author_following",
     "media",
     "content_disclosure",
     "quoted_tweet",
@@ -267,6 +302,7 @@ export async function getRetweeters(
     "description",
     "profile_picture",
     "followers",
+    "following",
     "is_verified",
     "is_blue_verified",
     "account_created_at",
@@ -289,7 +325,7 @@ export async function getTweets(order = "view_count.desc", filter = ""): Promise
   }
 
   const endpoint = `${supabaseUrl.replace(/\/$/, "")}/rest/v1/tweet_table_atomik`;
-  const query = `?select=${COLUMNS}${filter}&order=${order}`;
+  const query = `?select=${TWEET_COLUMNS}&source_type=eq.${FEED_SOURCE_TYPE}${filter}&order=${order}`;
 
   const response = await fetch(`${endpoint}${query}`, {
     headers: {
@@ -304,4 +340,60 @@ export async function getTweets(order = "view_count.desc", filter = ""): Promise
   }
 
   return response.json();
+}
+
+/** Exact retweeter count for a source tweet, independent of the 100-row page limit. */
+export async function countRetweeters(sourceTweetId: string): Promise<number> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required in .env.local",
+    );
+  }
+
+  const response = await fetch(
+    `${supabaseUrl.replace(/\/$/, "")}/rest/v1/retweeter_table_atomik` +
+      `?select=user_id&source_tweet_id=eq.${encodeURIComponent(sourceTweetId)}`,
+    {
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        Prefer: "count=exact",
+        Range: "0-0",
+      },
+      cache: "no-store",
+    },
+  );
+
+  return Number(response.headers.get("content-range")?.split("/")[1] ?? 0);
+}
+
+/** Exact row count for a source tweet's quotes under an arbitrary PostgREST filter. */
+export async function countQuoteTweets(sourceTweetId: string, filter = ""): Promise<number> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required in .env.local",
+    );
+  }
+
+  const response = await fetch(
+    `${supabaseUrl.replace(/\/$/, "")}/rest/v1/quote_tweet_table_atomik` +
+      `?select=id&source_tweet_id=eq.${encodeURIComponent(sourceTweetId)}${filter}`,
+    {
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        Prefer: "count=exact",
+        Range: "0-0",
+      },
+      cache: "no-store",
+    },
+  );
+
+  return Number(response.headers.get("content-range")?.split("/")[1] ?? 0);
 }

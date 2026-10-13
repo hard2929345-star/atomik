@@ -1,4 +1,5 @@
 import { VerifiedBadge } from "@/components/icons";
+import { ProfileHoverCard } from "@/components/profile-hover-card";
 import type { Retweeter } from "@/lib/tweets";
 
 const MENTION_PATTERN = /(@\w{1,15}|https?:\/\/\S+)/g;
@@ -17,35 +18,50 @@ function renderBio(description: string) {
 
 export function RetweeterRow({ retweeter }: { retweeter: Retweeter }) {
   const verified = retweeter.is_verified || retweeter.is_blue_verified;
+  const profile = {
+    name: retweeter.name,
+    username: retweeter.username,
+    profilePicture: retweeter.profile_picture,
+    description: retweeter.description,
+    followers: retweeter.followers,
+    following: retweeter.following,
+    verified,
+  };
 
   return (
     <div className="flex gap-3 px-4 py-3 transition-colors hover:bg-[#080808]">
       <div className="shrink-0">
-        {retweeter.profile_picture ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={retweeter.profile_picture.replace("_normal", "_x96")}
-            alt={retweeter.name}
-            className="h-10 w-10 rounded-full bg-[#16181c] object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="h-10 w-10 rounded-full bg-[#16181c]" />
-        )}
+        <ProfileHoverCard profile={profile}>
+          {retweeter.profile_picture ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={retweeter.profile_picture.replace("_normal", "_x96")}
+              alt={retweeter.name}
+              className="h-10 w-10 rounded-full bg-[#16181c] object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <div className="h-10 w-10 rounded-full bg-[#16181c]" />
+          )}
+        </ProfileHoverCard>
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1 leading-tight">
-            <div className="flex items-center gap-1">
-              <span className="truncate text-[15px] font-bold text-[#e7e9ea] hover:underline">
-                {retweeter.name}
+            <ProfileHoverCard profile={profile} className="flex-col items-start">
+              <span className="flex items-center gap-1">
+                <span className="truncate text-[15px] font-bold text-[#e7e9ea] hover:underline">
+                  {retweeter.name}
+                </span>
+                {verified ? (
+                  <VerifiedBadge className="h-[18px] w-[18px] shrink-0 text-[#1d9bf0]" />
+                ) : null}
               </span>
-              {verified ? (
-                <VerifiedBadge className="h-[18px] w-[18px] shrink-0 text-[#1d9bf0]" />
-              ) : null}
-            </div>
-            <p className="truncate text-[15px] text-[#71767b]">@{retweeter.username}</p>
+              <span className="block truncate text-[15px] text-[#71767b]">
+                @{retweeter.username}
+              </span>
+            </ProfileHoverCard>
           </div>
 
           <a

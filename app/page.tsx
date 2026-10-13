@@ -40,7 +40,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             No posts match this filter.
           </p>
         ) : (
-          tweets.map((tweet) => <TweetCard key={tweet.id} tweet={tweet} />)
+          tweets.map((tweet, index) => (
+            <TweetCard key={tweet.id} tweet={tweet} position={index + 1} />
+          ))
         )}
       </main>
 

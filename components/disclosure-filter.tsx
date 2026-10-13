@@ -1,47 +1,77 @@
 import Link from "next/link";
-import { buildQueryString, type SortDirection } from "@/lib/sort";
+import {
+  buildQueryString,
+  disclosureParam,
+  type Disclosure,
+  type SortDirection,
+} from "@/lib/sort";
+
+const PAID_BADGE = "border-[#ffd400]/40 bg-[#ffd400]/10 text-[#ffd400]";
+const UNPAID_BADGE = "border-[#536471] text-[#71767b]";
 
 export function DisclosureFilter({
   basePath,
   sort,
   direction,
   range,
-  paidOnly,
+  disclosure,
   paidCount,
   totalCount,
+  windowMinutes,
 }: {
   basePath: string;
   sort?: string;
   direction: SortDirection;
   range: { from?: string; to?: string };
-  paidOnly: boolean;
+  disclosure?: Disclosure;
   paidCount: number;
   totalCount: number;
+  windowMinutes?: number;
 }) {
-  const link = (paid: boolean) =>
+  const link = (value: Disclosure | undefined) =>
     `${basePath}${buildQueryString({
       sort,
       dir: direction,
       from: range.from,
       to: range.to,
-      paid: paid ? "1" : undefined,
+      paid: disclosureParam(value),
+      window: windowMinutes ? String(windowMinutes) : undefined,
     })}`;
 
-  const options = [
+  const unpaidCount = totalCount - paidCount;
+
+  const options: {
+    label: string;
+    badge?: string;
+    count: number;
+    active: boolean;
+    href: string;
+    disabled: boolean;
+  }[] = [
     {
       label: "All quotes",
       count: totalCount,
-      active: !paidOnly,
-      href: link(false),
+      active: !disclosure,
+      href: link(undefined),
       disabled: false,
     },
     {
-      label: "Paid partnerships",
+      label: "Paid partnership",
+      badge: PAID_BADGE,
       count: paidCount,
-      active: paidOnly,
-      href: link(true),
-      // Nothing to show for a post with no disclosed sponsorships.
-      disabled: paidCount === 0,
+      active: disclosure === "paid",
+      href: link("paid"),
+      // Nothing to show when no disclosed sponsorships fall inside the current filters.
+      // Stays clickable while active so the count can read 0 without trapping the user.
+      disabled: paidCount === 0 && disclosure !== "paid",
+    },
+    {
+      label: "Non-paid",
+      badge: UNPAID_BADGE,
+      count: unpaidCount,
+      active: disclosure === "unpaid",
+      href: link("unpaid"),
+      disabled: unpaidCount === 0 && disclosure !== "unpaid",
     },
   ];
 
@@ -52,13 +82,29 @@ export function DisclosureFilter({
       {options.map((option) => {
         const body = (
           <>
-            <span
-              className={`text-[15px] ${
-                option.active ? "font-bold text-[#e7e9ea]" : "text-[#71767b]"
-              }`}
-            >
-              {option.label}
-              <span className="ml-2 tabular-nums text-[13px] text-[#71767b]">{option.count}</span>
+            <span className="flex items-center">
+              {option.badge ? (
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${option.badge}`}
+                >
+                  {option.label}
+                </span>
+              ) : (
+                <span
+                  className={`text-[15px] ${
+                    option.active ? "font-bold text-[#e7e9ea]" : "text-[#71767b]"
+                  }`}
+                >
+                  {option.label}
+                </span>
+              )}
+              <span
+                className={`ml-2 tabular-nums text-[13px] ${
+                  option.active ? "font-bold text-[#e7e9ea]" : "text-[#71767b]"
+                }`}
+              >
+                {option.count}
+              </span>
             </span>
             <span
               className={`flex h-[18px] w-[18px] items-center justify-center rounded-full border ${
@@ -74,7 +120,7 @@ export function DisclosureFilter({
           return (
             <div
               key={option.label}
-              title="This post has no quotes labelled as a paid partnership"
+              title="No quotes of this kind match the current filters"
               className="flex cursor-not-allowed items-center justify-between px-4 py-2.5 opacity-40"
             >
               {body}

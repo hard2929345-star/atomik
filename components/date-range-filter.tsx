@@ -7,14 +7,16 @@ export function DateRangeFilter({
   sort,
   direction,
   range,
-  paidOnly = false,
+  paid,
+  windowMinutes,
 }: {
   basePath: string;
   label: string;
   sort?: string;
   direction: SortDirection;
   range: { from?: string; to?: string };
-  paidOnly?: boolean;
+  paid?: string;
+  windowMinutes?: number;
 }) {
   const isFiltered = Boolean(range.from || range.to);
 
@@ -25,7 +27,10 @@ export function DateRangeFilter({
       <form method="get" action={basePath} className="flex flex-col gap-3 px-4">
         {sort ? <input type="hidden" name="sort" value={sort} /> : null}
         <input type="hidden" name="dir" value={direction} />
-        {paidOnly ? <input type="hidden" name="paid" value="1" /> : null}
+        {paid ? <input type="hidden" name="paid" value={paid} /> : null}
+        {windowMinutes ? (
+          <input type="hidden" name="window" value={windowMinutes} />
+        ) : null}
 
         <p className="text-[13px] text-[#71767b]">{label}</p>
 
@@ -61,7 +66,8 @@ export function DateRangeFilter({
               href={`${basePath}${buildQueryString({
                 sort,
                 dir: direction,
-                paid: paidOnly ? "1" : undefined,
+                paid,
+                window: windowMinutes ? String(windowMinutes) : undefined,
               })}`}
               className="rounded-full border border-[#536471] px-4 py-2 text-[15px] font-bold text-[#e7e9ea] transition-colors hover:bg-[#181919]"
             >
